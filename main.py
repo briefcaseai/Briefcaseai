@@ -1,79 +1,70 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from openai import OpenAI
 
 app = FastAPI()
 client = OpenAI()
 
-class InputData(BaseModel):
-    data: dict  # accept full Tally payload
+@app.get("/generate", response_class=HTMLResponse)
+async def generate_get():
+    return """
+    <html>
+      <body style="font-family: Arial; padding: 40px;">
+        <h2>No case data received</h2>
+        <p>Please submit the form to generate documents.</p>
+      </body>
+    </html>
+    """
 
-@app.post("/generate")
-def generate_documents(data: InputData):
+@app.post("/generate", response_class=HTMLResponse)
+async def generate_post(request: Request):
+    payload = await request.json()
 
-    # 1️⃣ Extract client notes from Tally fields
+    fields = payload.get("data", {}).get("fields", [])
     client_text = ""
 
-    fields = data.data.get("fields", [])
     for field in fields:
-        if field.get("label") == "Paste client notes or case description":
+        if "Paste client notes" in field.get("label", ""):
             client_text = field.get("value", "")
 
     if not client_text:
-        return {
-            "output": "No client notes were received from the form."
-        }
+        client_text = "No client notes provided."
 
-    # 2️⃣ Build prompt correctly (THIS FIXES THE SYNTAX ERROR)
     prompt = f"""
-ROLE:
-You are an AI legal assistant generating internal law firm documents for attorneys.
+You are an AI legal assistant generating internal law firm documents.
 
-TASK:
-From the input text, generate TWO outputs exactly as structured below.
-
-OUTPUT 1 — CASE SUMMARY
-- Case title
-- Practice area
-- Parties involved
-- Timeline of events
-- Key facts
-- Potential legal issues (identify only; do NOT advise)
-- Missing or unclear information
-- Recommended internal next steps
-
-OUTPUT 2 — CLIENT INTAKE FORM
-- Client personal information
-- Incident or matter details
-- Dates and locations
-- Witnesses
-- Evidence available
-- Deadlines or time-sensitive items
-- Practice-area-specific intake questions
-
-RULES:
-- Neutral, factual, professional tone
-- Do NOT provide legal advice
-- Do NOT make assumptions beyond the provided text
-- Use clear headings and bullet points
-- Explicitly flag missing or unclear information
-- Assume U.S. law unless otherwise stated
-- Output must be suitable for internal law firm use
+Generate:
+1) CASE SUMMARY
+2) CLIENT INTAKE FORM
 
 INPUT:
 {client_text}
 """
 
-    # 3️⃣ Call OpenAI
     response = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
+        messages=[{"role": "user", "content": prompt}]
     )
 
-    # 4️⃣ Return output for Tally
-    return {
-        "output": response.choices[0].message.content
-    }
+    output = response.choices[0].message.content
 
+    return f"""
+    <html>
+      <head>
+        <title>AI Case Summary</title>
+        <style>
+          body {{
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            max-width: 900px;
+            margin: auto;
+            white-space: pre-wrap;
+          }}
+        </style>
+      </head>
+      <body>
+        <h1>AI-Generated Case Summary & Intake</h1>
+        <pre>{output}</pre>
+      </body>
+    </html>
+    """

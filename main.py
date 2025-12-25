@@ -41,7 +41,8 @@ def generate_documents(data: InputData):
         "- Assume U.S. law unless otherwise stated\n"
         "- Output must be suitable for internal law firm use\n\n"
         "INPUT:\n"
-        f"{data.text}"
+client_text
+
     )
 
     response = client.chat.completions.create(

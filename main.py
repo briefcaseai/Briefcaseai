@@ -1,16 +1,13 @@
------------------------------------
-| main.py                         |
------------------------------------
-| from fastapi import FastAPI     |
-| from pydantic import BaseModel |
-| from openai import OpenAI       |
-|                                 |
-| app = FastAPI()                |
-| client = OpenAI()              |
-|                                 |
-| class InputData(BaseModel):    |
-|     text: str                  |
-|                                 |
+from fastapi import FastAPI
+from pydantic import BaseModel
+from openai import OpenAI
+
+app = FastAPI()
+client = OpenAI()
+
+class InputData(BaseModel):
+    text: str
+
 @app.post("/generate")
 def generate_documents(data: InputData):
     prompt = (
@@ -49,7 +46,10 @@ def generate_documents(data: InputData):
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}]
+        messages=[
+            {"role": "user", "content": prompt}
+        ]
     )
 
     return {"result": response.choices[0].message.content}
+
